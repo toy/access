@@ -1,13 +1,36 @@
 Access
 ======
 
-Introduction goes here.
-
+Defining access to actions through calls to allow/deny
 
 Example
 =======
 
-Example goes here.
+class ApplicationController < ActionController::Base
+  deny_by_default
+end
 
+class FirstController < ApplicationController
+  allow :if => :user_is_admin?
+  allow :first, :if => :user_is_vova?
+  allow :second, :if => lambda{ |controller| (12..20) === Time.now.hour }
+  deny :second, :unless => lambda{ |controller| (10..50) === Time.now.min }
+  
+  def first
+    ...
+  end
 
-Copyright (c) 2008 [name of plugin creator], released under the MIT license
+  def second
+    ...
+  end
+  
+private
+
+  def user_is_admin?
+    user.admin?
+  end
+  
+  def user_is_vova?
+    user.vova?
+  end
+end
