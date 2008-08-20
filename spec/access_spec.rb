@@ -301,5 +301,4 @@ describe Access, 'with default access' do
     pass_test(:all)
   end
 
-
 end
