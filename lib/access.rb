@@ -80,9 +80,9 @@ private
         # callback ||= rule[:options][:callback]
 
         pass_block = if rule[:options][:if]
-          rule[:options][:if].is_a?(Symbol) ? send(rule[:options][:if]) : rule[:options][:if].call(self)
+          access_filter_condition_result(rule[:options][:if])
         elsif rule[:options][:unless]
-          !(rule[:options][:unless].is_a?(Symbol) ? send(rule[:options][:unless]) : rule[:options][:unless].call(self))
+          !access_filter_condition_result(rule[:options][:unless])
         else
           true
         end
@@ -101,6 +101,17 @@ private
       else
         access_denied
       end
+    end
+  end
+  
+  def access_filter_condition_result(condition)
+    case condition
+      when Symbol
+        send(condition)
+      when Proc
+        condition.call(self)
+      else
+        raise "Unknown type of callback #{condition.inspect}"
     end
   end
 end
