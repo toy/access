@@ -71,18 +71,18 @@ private
     action = action_name.to_sym
 
     allow = self.class.default_access
-    render_tmpl = nil
-    # callback = nil
+    to_render = nil
+    callback = nil
 
     self.class.access_rules.each do |rule|
       if rule[:action].nil? || rule[:action] == action
-        render_tmpl ||= rule[:options][:render]
-        # callback ||= rule[:options][:callback]
+        to_render = rule[:options][:render] || to_render
+        callback = rule[:options][:callback] || callback
 
         pass_block = if rule[:options][:if]
-          access_filter_condition_result(rule[:options][:if])
+          access_run_method(rule[:options][:if])
         elsif rule[:options][:unless]
-          !access_filter_condition_result(rule[:options][:unless])
+          !access_run_method(rule[:options][:unless])
         else
           true
         end
@@ -94,24 +94,26 @@ private
     end
 
     if allow == false
-      if render_tmpl
-        render :action => render_tmpl, :layout => 'error', :status => 401
-      # elsif callback
-      #   callback.is_a?(Symbol) ? send(callback) : callback.call(self)
+      if to_render
+        render to_render.merge(:status => 401)
+      elsif callback
+        access_run_method(callback)
       else
         access_denied
       end
     end
   end
   
-  def access_filter_condition_result(condition)
-    case condition
+  def access_run_method(method)
+    case method
       when Symbol
-        send(condition)
-      when Proc
-        condition.call(self)
+        send(method)
+      when Proc, Method
+        method.call(self)
+      when String
+        eval(method)
       else
-        raise "Unknown type of callback #{condition.inspect}"
+        raise "Unknown type of method #{method.inspect}"
     end
   end
 end
