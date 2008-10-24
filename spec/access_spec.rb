@@ -8,16 +8,18 @@ module AccessModuleSpecHelper
   def create_controller(&block)
     controller = Class.new(ApplicationController)
     controller.class_eval do
-      def first
-        render :text => 'First!'
-      end
-
-      def second
-        render :text => 'Second!'
-      end
-
-      def third
-        render :text => 'Third!'
+      %w(first second third).each do |word|
+        class_eval <<-src_code, __FILE__, __LINE__
+          def #{word}
+            render :text => '#{word.capitalize}!'
+          end
+          def #{word}?
+            action_name == '#{word}'
+          end
+          def not_#{word}?
+            action_name != '#{word}'
+          end
+        src_code
       end
     end
     controller.class_eval(&block) if block
@@ -199,12 +201,7 @@ describe Access, 'with if and unless' do
   it "should apply rule if function evaluates to true" do
     create_controller do
       deny :if => :first?
-
-      def first?
-        action_name == 'first'
-      end
     end
-
     pass_test(:second, :third)
   end
 
@@ -212,28 +209,56 @@ describe Access, 'with if and unless' do
     create_controller do
       deny :if => lambda{ |c| c.action_name == 'first' }
     end
-
     pass_test(:second, :third)
+  end
+
+  it "should apply rule if string evaluates to true" do
+    create_controller do
+      deny :if => "first? or second?"
+    end
+    pass_test(:third)
+  end
+
+  it "should apply rule if all evaluates to true" do
+    create_controller do
+      deny :if => [:not_first?, 'not_second?']
+    end
+    pass_test(:first, :second)
   end
 
   it "should apply rule unless function evaluates to true" do
     create_controller do
       deny :unless => :first?
-
-      def first?
-        action_name == 'first'
-      end
     end
-
     pass_test(:first)
   end
 
-  it "should apply rule unless inline block evaluates to true" do
+  it "should apply rule if all in array evaluates to true" do
     create_controller do
-      deny :unless => lambda{ |c| c.action_name == 'first' }
+      deny :if_all => [:not_first?, 'not_second?']
     end
+    pass_test(:first, :second)
+  end
 
-    pass_test(:first)
+  it "should apply rule if any in array evaluates to true" do
+    create_controller do
+      deny :if_any => [:first?, 'second?']
+    end
+    pass_test(:third)
+  end
+
+  it "should apply rule if all in array evaluates to true" do
+    create_controller do
+      deny :unless_all => [:not_first?, 'not_second?']
+    end
+    pass_test(:third)
+  end
+  
+  it "should apply rule if any in array evaluates to true" do
+    create_controller do
+      deny :unless_any => [:first?, 'second?']
+    end
+    pass_test(:first, :second)
   end
 
 end

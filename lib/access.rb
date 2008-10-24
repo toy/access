@@ -48,7 +48,7 @@ module Access
       end
       write_inheritable_attribute(:default_access, type == :allow)
     end
-    
+
     def default_access
       read_inheritable_attribute(:default_access)
     end
@@ -80,9 +80,17 @@ private
         callback = rule[:options][:callback] || callback
 
         pass_block = if rule[:options][:if]
-          access_run_method(rule[:options][:if])
+          access_if(rule[:options][:if])
+        elsif rule[:options][:if_all]
+          access_if_all(rule[:options][:if_all])
+        elsif rule[:options][:if_any]
+          access_if_any(rule[:options][:if_any])
         elsif rule[:options][:unless]
-          !access_run_method(rule[:options][:unless])
+          !access_if(rule[:options][:unless])
+        elsif rule[:options][:unless_all]
+          !access_if_all(rule[:options][:unless_all])
+        elsif rule[:options][:unless_any]
+          !access_if_any(rule[:options][:unless_any])
         else
           true
         end
@@ -103,8 +111,8 @@ private
       end
     end
   end
-  
-  def access_run_method(method)
+
+  def access_if(method)
     case method
       when Symbol
         send(method)
@@ -112,8 +120,22 @@ private
         method.call(self)
       when String
         eval(method)
+      when Array
+        access_if_all(method)
       else
         raise "Unknown type of method #{method.inspect}"
+    end
+  end
+
+  def access_if_all(methods)
+    methods.all? do |method|
+      access_if(method)
+    end
+  end
+
+  def access_if_any(methods)
+    methods.any? do |method|
+      access_if(method)
     end
   end
 end
