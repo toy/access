@@ -6,42 +6,42 @@ Defining access to actions through calls to allow/deny
 Example
 =======
 
-class ApplicationController < ActionController::Base
-  deny_by_default
-end
+  class ApplicationController < ActionController::Base
+    deny_by_default
+  end
 
-class FirstController < ApplicationController
-  allow :if => :user_is_admin?
-  allow :first, :if => :user_is_vova?
-  allow :second, :if => lambda{ |controller| (12..20) === Time.now.hour }
-  deny :second, :unless => lambda{ |controller| (10..50) === Time.now.min }
+  class FirstController < ApplicationController
+    allow :if => :user_is_admin?
+    allow :first, :if => :user_is_vova?
+    allow :second, :if => lambda{ |controller| (12..20) === Time.now.hour }
+    deny :second, :unless => lambda{ |controller| (10..50) === Time.now.min }
 
-  allow :admin_action, :if_all => [:user_is_admin?, 'special_condition']
-  allow :admin_action, :if_any => [:user_is_admin?, 'special_condition']
-  allow :admin_action, :unless_all => [:user_is_admin?, 'special_condition']
-  allow :admin_action, :unless_any => [:user_is_admin?, 'special_condition']
+    allow :admin_action, :if_all => [:user_is_admin?, 'special_condition']
+    allow :admin_action, :if_any => [:user_is_admin?, 'special_condition']
+    allow :admin_action, :unless_all => [:user_is_admin?, 'special_condition']
+    allow :admin_action, :unless_any => [:user_is_admin?, 'special_condition']
 
-  allow :admin_action, :if => [:user_is_admin?, 'special_condition'] # if with array is as if_all. this is also true for unless
+    allow :admin_action, :if => [:user_is_admin?, 'special_condition'] # if with array is as if_all. this is also true for unless
   
-  def first
-    ...
-  end
+    def first
+      ...
+    end
 
-  def second
-    ...
-  end
+    def second
+      ...
+    end
   
-private
+  private
 
-  def user_is_admin?
-    user.admin?
-  end
+    def user_is_admin?
+      user.admin?
+    end
   
-  def user_is_vova?
-    user.vova?
-  end
+    def user_is_vova?
+      user.vova?
+    end
   
-  def special_condition
-    Time.now.day % 2 == 0
+    def special_condition
+      Time.now.day % 2 == 0
+    end
   end
-end
