@@ -82,15 +82,11 @@ private
         pass_block = if rule[:options][:if]
           access_if(rule[:options][:if])
         elsif rule[:options][:if_all]
-          access_if_all(rule[:options][:if_all])
-        elsif rule[:options][:if_any]
-          access_if_any(rule[:options][:if_any])
+          access_if(rule[:options][:if_all], :all)
         elsif rule[:options][:unless]
           !access_if(rule[:options][:unless])
         elsif rule[:options][:unless_all]
-          !access_if_all(rule[:options][:unless_all])
-        elsif rule[:options][:unless_any]
-          !access_if_any(rule[:options][:unless_any])
+          !access_if(rule[:options][:unless_all], :all)
         else
           true
         end
@@ -112,30 +108,20 @@ private
     end
   end
 
-  def access_if(method)
+  def access_if(method, conjunction = :any)
     case method
       when Symbol
         send(method)
-      when Proc, Method
-        method.call(self)
+      when Proc
+        instance_eval(&method)
       when String
-        eval(method)
+        instance_eval(method)
       when Array
-        access_if_all(method)
+        method.send("#{conjunction}?") do |method|
+          access_if(method, :all)
+        end
       else
         raise "Unknown type of method #{method.inspect}"
-    end
-  end
-
-  def access_if_all(methods)
-    methods.all? do |method|
-      access_if(method)
-    end
-  end
-
-  def access_if_any(methods)
-    methods.any? do |method|
-      access_if(method)
     end
   end
 end

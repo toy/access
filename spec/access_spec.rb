@@ -36,25 +36,14 @@ module AccessModuleSpecHelper
 
   def pass_test(*actions)
     %w(first second third).each do |action|
-      if actions.include?(action.to_sym) || actions == [:all] || actions == []
-        send("#{action}_should_pass")
+      get action
+      if actions.include?(action.to_sym) || actions == [:all]
+        @response.should have_text("#{action.camelize}!")
+        @response.should_not redirect_to('/')
       else
-        send("#{action}_should_not_pass")
-      end
-    end
-  end
-
-  def method_missing(method, *args, &block)
-    if m = method.to_s.match(/^(first|second|third)_should(_not)?_pass$/)
-      # first_should_pass, first_should_not_pass, second_should_pass, second_should_not_pass, third_should_pass, third_should_not_pass
-      get m[1]
-      unless m[2]
-        @response.should have_text("#{m[1].camelize}!")
-      else
+        @response.should_not have_text("#{action.camelize}!")
         @response.should redirect_to('/')
       end
-    else
-      super(method, *args, &block)
     end
   end
 
@@ -69,7 +58,6 @@ describe Access do
 
   it "should allow without rules" do
     create_controller
-
     pass_test(:all)
   end
 
@@ -77,7 +65,14 @@ describe Access do
     create_controller do
       allow
     end
+    pass_test(:all)
+  end
 
+  it "should allow for global allow after global deny" do
+    create_controller do
+      deny
+      allow
+    end
     pass_test(:all)
   end
 
@@ -85,30 +80,16 @@ describe Access do
     create_controller do
       deny
     end
-
     pass_test(:none)
   end
 
-  it "should handle \"silly\" rules (example 1)" do
-    create_controller do
-      allow
-      allow
-      allow
-    end
-
-    pass_test(:all)
-  end
-
-  it "should handle \"silly\" rules (example 2)" do
+  it "should deny for global deny after global allow" do
     create_controller do
       allow
       deny
-      allow
     end
-
-    pass_test(:all)
+    pass_test(:none)
   end
-
 end
 
 describe Access, 'with individual rules' do
@@ -207,23 +188,16 @@ describe Access, 'with if and unless' do
 
   it "should apply rule if inline block evaluates to true" do
     create_controller do
-      deny :if => lambda{ |c| c.action_name == 'first' }
+      deny :if => proc{ action_name == 'first' }
     end
     pass_test(:second, :third)
   end
 
   it "should apply rule if string evaluates to true" do
     create_controller do
-      deny :if => "first? or second?"
+      deny :if => "first? || second?"
     end
     pass_test(:third)
-  end
-
-  it "should apply rule if all evaluates to true" do
-    create_controller do
-      deny :if => [:not_first?, 'not_second?']
-    end
-    pass_test(:first, :second)
   end
 
   it "should apply rule unless function evaluates to true" do
@@ -233,34 +207,41 @@ describe Access, 'with if and unless' do
     pass_test(:first)
   end
 
-  it "should apply rule if all in array evaluates to true" do
+  it "should apply rule if all expressions in any of inner arrays evaluases to true" do
     create_controller do
-      deny :if_all => [:not_first?, 'not_second?']
-    end
-    pass_test(:first, :second)
-  end
-
-  it "should apply rule if any in array evaluates to true" do
-    create_controller do
-      deny :if_any => [:first?, 'second?']
+      deny :if => [[:first?, :not_second?], [:second?, :not_first?], [:third?, [:not_first?, :not_second?, :not_third?]]]
     end
     pass_test(:third)
   end
 
-  it "should apply rule if all in array evaluates to true" do
+  it "should apply rule if any in array evaluates to true" do
     create_controller do
-      deny :unless_all => [:not_first?, 'not_second?']
+      deny :if => [:first?, :second?]
     end
     pass_test(:third)
   end
   
-  it "should apply rule if any in array evaluates to true" do
+  it "should apply rule if all in array evaluates to true" do
     create_controller do
-      deny :unless_any => [:first?, 'second?']
+      deny :if_all => [:not_first?, :not_second?]
     end
     pass_test(:first, :second)
   end
-
+  
+  it "should apply rule if any in array evaluates to true" do
+    create_controller do
+      deny :unless => [:first?, :second?]
+    end
+    pass_test(:first, :second)
+  end
+  
+  it "should apply rule if all in array evaluates to true" do
+    create_controller do
+      deny :unless_all => [:not_first?, :not_second?]
+    end
+    pass_test(:third)
+  end
+  
 end
 
 describe Access, 'with default access' do

@@ -6,42 +6,96 @@ Defining access to actions through calls to allow/deny
 Example
 =======
 
+  #you cat rewrite access_denied which by default redirects to '/'
+  access_denied
+
+  #allow/deny all actions if there are no other rules for action
+  allow_by_default
+  deny_by_default
+
+  #allow/deny all following actions
+  allow
+  deny
+
+  #now explanation of rules (examples for allow can be applied to deny)
+
+  #allow index and show
+  allow :index, :show
+
+  #allow all actions if admin? evaluates to true
+  allow :if => :admin?
+
+  #allow index and show if admin? evaluates to true
+  allow :index, :show, :if => :admin?
+
+  #allow index and show if admin? or user? (string evaluates in context of controller instance)
+  allow :index, :show, :if => 'admin? || user?'
+
+  #allow index and show if admin? or user? (proc evaluates in context of controller instance)
+  allow :index, :show, :if => proc{ admin? || user? }
+
+  #allow index and show if admin? or user?
+  allow :index, :show, :if => [:admin?, :user?]
+
+  #allow index and show if admin? and odd_day?
+  allow :index, :show, :if_all => [:admin?, :odd_day?]
+
+  #allow index and show if admin? and odd_day? or user? and even_day?
+  allow :index, :show, :if => [[:admin?, :odd_day?], [:user?, :even_day?]]
+
+  #allow index and show unless bad_user? or robot?
+  allow :index, :show, :unless => [:bad_user?, :robot?]
+
+  #allow index and show unless bad_user? and was_here_today?
+  allow :index, :show, :unless_all => [:bad_user?, :was_here_today?]
+
+  #rules override each other (order of rules is important)
+  #index can be accessed by anyone except bad_user
+  #new can be accessed by admin or user with special key but not by bad_user or robot (ever if he has special key)
+  #all other actions are inaccessible
+  deny_by_default
+  allow :index
+  allow :new, :if => [:admin?, :has_special_key?]
+  deny :if => :bad_user?
+  deny :new, :if => :robot?
+
+  #example
   class ApplicationController < ActionController::Base
     deny_by_default
   end
 
-  class FirstController < ApplicationController
-    allow :if => :user_is_admin?
-    allow :first, :if => :user_is_vova?
-    allow :second, :if => lambda{ |controller| (12..20) === Time.now.hour }
-    deny :second, :unless => lambda{ |controller| (10..50) === Time.now.min }
+  class PostController < ApplicationController
+    allow :index, :show, :new, :create
+    allow :edit, :update, :if => :owner
+    allow :destroy, :if => :admin?
+    deny :new, :create, :if => [:bad_user, :wrote_post_for_last_5_minutes?]
+    deny :edit, :update, :if => :bad_user
 
-    allow :admin_action, :if_all => [:user_is_admin?, 'special_condition']
-    allow :admin_action, :if_any => [:user_is_admin?, 'special_condition']
-    allow :admin_action, :unless_all => [:user_is_admin?, 'special_condition']
-    allow :admin_action, :unless_any => [:user_is_admin?, 'special_condition']
-
-    allow :admin_action, :if => [:user_is_admin?, 'special_condition'] # if with array is as if_all. this is also true for unless
-  
-    def first
+    def index
       ...
     end
 
-    def second
+    def show
       ...
     end
-  
-  private
 
-    def user_is_admin?
-      user.admin?
+    def new
+      ...
     end
-  
-    def user_is_vova?
-      user.vova?
+
+    def edit
+      ...
     end
-  
-    def special_condition
-      Time.now.day % 2 == 0
+
+    def create
+      ...
+    end
+
+    def update
+      ...
+    end
+
+    def destroy
+      ...
     end
   end
