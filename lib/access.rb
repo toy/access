@@ -12,7 +12,16 @@ module Access
       add_access_rule(:deny, arguments, arguments.extract_options!)
     end
 
+    CONDITION_RULE_OPTIONS = [:if, :if_any, :if_all, :unless, :unless_any, :unless_all]
+    VALID_RULE_OPTIONS = [:render, :callback] + CONDITION_RULE_OPTIONS
+
     def add_access_rule(type, actions, options)
+      options.assert_valid_keys(VALID_RULE_OPTIONS) # TODO: test
+      condition_option_keys = options.keys & CONDITION_RULE_OPTIONS # TODO: test
+      if condition_option_keys.length > 1 # TODO: test
+        raise(ArgumentError, "There can be only one condition, got #{condition_option_keys.length}: #{condition_option_keys.join(", ")}") # TODO: test
+      end # TODO: test
+
       if [:allow, :deny].include?(type)
         if read_inheritable_attribute(:access_rules).nil?
           before_filter :access_filter
@@ -99,7 +108,7 @@ private
 
     if allow == false
       if to_render
-        render to_render.merge(:status => 401)
+        render to_render.reverse_merge(:status => 401)
       elsif callback
         access_run_method(callback)
       else
