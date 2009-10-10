@@ -45,15 +45,7 @@ module Access
           before_filter :access_filter
           write_inheritable_attribute(:access_rules, [])
         end
-
-        rules = if actions.length > 0
-          actions.map do |action|
-            {:type => type, :action => action, :options => options}
-          end
-        else
-          [{:type => type, :options => options}]
-        end
-        write_inheritable_array(:access_rules, rules)
+        write_inheritable_array(:access_rules, [{:type => type, :actions => actions, :options => options}])
       end
     end
 
@@ -81,11 +73,11 @@ private
     action = action_name.to_sym
 
     allow = self.class.default_access
-    to_render = nil
-    callback = nil
+    to_render, callback = nil, nil
 
     self.class.access_rules.each do |rule|
-      if rule[:action].nil? || rule[:action] == action
+      rule_allow = rule[:type] == :allow ? true : false
+      if rule_allow != allow && (rule[:actions].empty? || rule[:actions].include?(action))
         to_render = rule[:options][:render] || to_render
         callback = rule[:options][:callback] || callback
 
@@ -106,9 +98,7 @@ private
           true
         end
 
-        if pass_block
-          allow = rule[:type] === :allow ? true : false
-        end
+        allow = rule_allow if pass_block
       end
     end
 

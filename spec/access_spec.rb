@@ -2,8 +2,8 @@ require File.dirname(__FILE__) + '/spec_helper'
 
 module AccessControllerCreator
   def create_controller(&block)
-    Class.new(ApplicationController).tap do |controller|
-      controller.class_eval do
+    Class.new(ApplicationController).tap do |controller_class|
+      controller_class.class_eval do
         %w(first second third).each do |word|
           class_eval <<-src_code, __FILE__, __LINE__
             def #{word}
@@ -18,22 +18,22 @@ module AccessControllerCreator
           src_code
         end
       end
-      controller.class_eval(&block) if block
+      controller_class.class_eval(&block) if block
     end
   end
 
   def test_controller(description, *blocks, &test_block)
     describe '' do
-      controller = blocks.inject(nil) do |parent, block|
+      controller_class = blocks.inject(nil) do |parent, block|
         if parent
-          Class.new(parent).tap do |sub_controller|
-            sub_controller.class_eval(&block) if block
+          Class.new(parent).tap do |sub_controller_class|
+            sub_controller_class.class_eval(&block) if block
           end
         else
           create_controller(&block)
         end
       end
-      tests controller
+      tests controller_class
       it description do
         self.instance_eval(&test_block)
       end
@@ -230,6 +230,23 @@ describe Access, :type => :controller do
     }, proc{
       allow_by_default
     }
+  end
+
+  test_controller "should not run rules that will not change anything", proc{
+    allow :if => :a?
+    allow :if => :b?
+    allow :first, :if => :b?
+    deny :if => :c?
+    deny :if => :d?
+    deny :second, :if => :d?
+  } do
+    proc{
+      controller.should_receive(:a?).and_return(true)
+      controller.should_not_receive(:b?)
+      controller.should_receive(:c?).and_return(true)
+      controller.should_not_receive(:d?)
+      get 'first'
+    }.should_not raise_error
   end
 end
 
