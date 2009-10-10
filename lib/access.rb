@@ -73,13 +73,9 @@ private
     action = action_name.to_sym
 
     allow = self.class.default_access
-    to_render, callback = nil, nil
 
     self.class.access_rules.each do |rule|
       if rule[:allow] != allow && (rule[:actions].empty? || rule[:actions].include?(action))
-        to_render = rule[:options][:render] || to_render
-        callback = rule[:options][:callback] || callback
-
         pass_block = case
         when cond = rule[:options][:if]
           access_if(cond)
@@ -101,15 +97,7 @@ private
       end
     end
 
-    if allow == false
-      if to_render
-        render to_render.reverse_merge(:status => 401)
-      elsif callback
-        access_run_method(callback)
-      else
-        access_denied
-      end
-    end
+    access_denied if allow == false
   end
 
   def access_if(method, conjunction = nil)
