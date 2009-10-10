@@ -1,6 +1,30 @@
 require File.dirname(__FILE__) + '/spec_helper'
 
+module AccessControllerCreator
+  def create_controller(&block)
+    Class.new(ApplicationController).tap do |controller|
+      controller.class_eval do
+        %w(first second third).each do |word|
+          class_eval <<-src_code, __FILE__, __LINE__
+            def #{word}
+              render :text => '#{word.capitalize}!'
+            end
+            def #{word}?
+              action_name == '#{word}'
+            end
+            def not_#{word}?
+              action_name != '#{word}'
+            end
+          src_code
+        end
+      end
+      controller.class_eval(&block) if block
+    end
+  end
+end
+
 describe Access, :type => :controller do
+  extend AccessControllerCreator
   def self.test_access(description, actions, *blocks)
     describe '' do
       controller = blocks.inject(nil) do |parent, block|
@@ -9,24 +33,7 @@ describe Access, :type => :controller do
             sub_controller.class_eval(&block) if block
           end
         else
-          Class.new(ApplicationController).tap do |controller|
-            controller.class_eval do
-              %w(first second third).each do |word|
-                class_eval <<-src_code, __FILE__, __LINE__
-                  def #{word}
-                    render :text => '#{word.capitalize}!'
-                  end
-                  def #{word}?
-                    action_name == '#{word}'
-                  end
-                  def not_#{word}?
-                    action_name != '#{word}'
-                  end
-                src_code
-              end
-            end
-            controller.class_eval(&block) if block
-          end
+          create_controller(&block)
         end
       end
       tests controller
@@ -179,5 +186,33 @@ describe Access, :type => :controller do
     }, proc{
       allow_by_default
     }
+  end
+end
+
+describe "passing options" do
+  include AccessControllerCreator
+
+  it "should allow valid params" do
+    proc{
+      create_controller do
+        allow :if => :first?, :render => {:nothing => true}, :callback => :notify_admin!
+      end
+    }.should_not raise_error
+  end
+
+  it "should not allow invalid params" do
+    proc{
+      create_controller do
+        allow :none => :first?
+      end
+    }.should raise_error(ArgumentError)
+  end
+
+  it "should not allow multiple condition params" do
+    proc{
+      create_controller do
+        allow :if => :first?, :unless => :second?
+      end
+    }.should raise_error(ArgumentError)
   end
 end
