@@ -21,11 +21,8 @@ module AccessControllerCreator
       controller.class_eval(&block) if block
     end
   end
-end
 
-describe Access, :type => :controller do
-  extend AccessControllerCreator
-  def self.test_access(description, actions, *blocks)
+  def test_controller(description, *blocks, &test_block)
     describe '' do
       controller = blocks.inject(nil) do |parent, block|
         if parent
@@ -37,17 +34,26 @@ describe Access, :type => :controller do
         end
       end
       tests controller
-      it "should get" do
-        actions = Array(actions)
-        %w(first second third).each do |action|
-          get action
-          if actions == [:all] || actions.include?(action.to_sym)
-            response.should have_text("#{action.camelize}!")
-            response.should_not redirect_to('/')
-          else
-            response.should_not have_text("#{action.camelize}!")
-            response.should redirect_to('/')
-          end
+      it description do
+        self.instance_eval(&test_block)
+      end
+    end
+  end
+end
+
+describe Access, :type => :controller do
+  extend AccessControllerCreator
+  def self.test_access(description, actions, *blocks)
+    test_controller description, *blocks do
+      actions = Array(actions)
+      %w(first second third).each do |action|
+        get action
+        if actions == [:all] || actions.include?(action.to_sym)
+          response.should have_text("#{action.camelize}!")
+          response.should_not redirect_to('/')
+        else
+          response.should_not have_text("#{action.camelize}!")
+          response.should redirect_to('/')
         end
       end
     end
