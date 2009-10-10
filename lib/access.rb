@@ -40,13 +40,11 @@ module Access
         raise(ArgumentError, "There can be only one condition, got #{condition_option_keys.length}: #{condition_option_keys.join(", ")}")
       end
 
-      if [:allow, :deny].include?(type)
-        if read_inheritable_attribute(:access_rules).nil?
-          before_filter :access_filter
-          write_inheritable_attribute(:access_rules, [])
-        end
-        write_inheritable_array(:access_rules, [{:allow => type == :allow, :actions => actions, :options => options}])
+      if read_inheritable_attribute(:access_rules).nil?
+        before_filter :access_filter
+        write_inheritable_attribute(:access_rules, [])
       end
+      write_inheritable_array(:access_rules, [{:allow => type == :allow, :actions => actions, :options => options}])
     end
 
     def set_default_access(allow)
