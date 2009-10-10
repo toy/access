@@ -16,11 +16,11 @@ module Access
     VALID_RULE_OPTIONS = [:render, :callback] + CONDITION_RULE_OPTIONS
 
     def allow_by_default
-      set_default_access(:allow)
+      set_default_access(true)
     end
 
     def deny_by_default
-      set_default_access(:deny)
+      set_default_access(false)
     end
 
     def default_access
@@ -45,15 +45,15 @@ module Access
           before_filter :access_filter
           write_inheritable_attribute(:access_rules, [])
         end
-        write_inheritable_array(:access_rules, [{:type => type, :actions => actions, :options => options}])
+        write_inheritable_array(:access_rules, [{:allow => type == :allow, :actions => actions, :options => options}])
       end
     end
 
-    def set_default_access(type)
+    def set_default_access(allow)
       if read_inheritable_attribute(:default_access).nil?
         before_filter :default_access_filter
       end
-      write_inheritable_attribute(:default_access, type == :allow)
+      write_inheritable_attribute(:default_access, allow)
     end
   end
 
@@ -76,8 +76,7 @@ private
     to_render, callback = nil, nil
 
     self.class.access_rules.each do |rule|
-      rule_allow = rule[:type] == :allow ? true : false
-      if rule_allow != allow && (rule[:actions].empty? || rule[:actions].include?(action))
+      if rule[:allow] != allow && (rule[:actions].empty? || rule[:actions].include?(action))
         to_render = rule[:options][:render] || to_render
         callback = rule[:options][:callback] || callback
 
@@ -98,7 +97,7 @@ private
           true
         end
 
-        allow = rule_allow if pass_block
+        allow = rule[:allow] if pass_block
       end
     end
 
