@@ -124,7 +124,7 @@ describe Access, :type => :controller do
     }
   end
 
-  describe "with if and unless" do
+  describe "with conditions" do
     test_access "should apply rule if function evaluates to true", [:second, :third], proc{
       deny :if => :first?
     }
@@ -141,12 +141,8 @@ describe Access, :type => :controller do
       deny :unless => :first?
     }
 
-    test_access "should apply rule if all expressions in any of inner arrays evaluases to true", :third, proc{
-      deny :if => [[:first?, :not_second?], [:second?, :not_first?], [:third?, [:not_first?, :not_second?, :not_third?]]]
-    }
-
     test_access "should apply rule if any in array evaluates to true", :third, proc{
-      deny :if => [:first?, :second?]
+      deny :if_any => [:first?, :second?]
     }
 
     test_access "should apply rule if all in array evaluates to true", [:first, :second], proc{
@@ -154,12 +150,54 @@ describe Access, :type => :controller do
     }
 
     test_access "should apply rule if any in array evaluates to true", [:first, :second], proc{
-      deny :unless => [:first?, :second?]
+      deny :unless_any => [:first?, :second?]
     }
 
     test_access "should apply rule if all in array evaluates to true", :third, proc{
       deny :unless_all => [:not_first?, :not_second?]
     }
+
+    describe "conditon types" do
+      [:if, :unless].each do |condition_name|
+        test_controller "should not accept Array for #{condition_name}", proc{
+          allow condition_name => []
+        } do
+          proc{
+            get 'first'
+          }.should raise_error
+        end
+
+        [:first?, proc{ first? }, 'first?'].each do |condition|
+          test_controller "should accept #{condition.class} for #{condition_name}", proc{
+            allow condition_name => condition
+          } do
+            proc{
+              get 'first'
+            }.should_not raise_error
+          end
+        end
+      end
+
+      [:if_any, :if_all, :unless_any, :unless_all].each do |condition_name|
+        test_controller "should accept Array for #{condition_name}", proc{
+          allow condition_name => []
+        } do
+          proc{
+            get 'first'
+          }.should_not raise_error
+        end
+
+        [:first?, proc{ first? }, 'first?'].each do |condition|
+          test_controller "should not accept #{condition.class} for #{condition_name}", proc{
+            allow condition_name => condition
+          } do
+            proc{
+              get 'first'
+            }.should raise_error
+          end
+        end
+      end
+    end
   end
 
   describe "with default access" do
@@ -195,7 +233,7 @@ describe Access, :type => :controller do
   end
 end
 
-describe "passing options" do
+describe "passing wrong options" do
   include AccessControllerCreator
 
   it "should allow valid params" do

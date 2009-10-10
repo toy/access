@@ -89,14 +89,19 @@ private
         to_render = rule[:options][:render] || to_render
         callback = rule[:options][:callback] || callback
 
-        pass_block = if rule[:options][:if]
-          access_if(rule[:options][:if])
-        elsif rule[:options][:if_all]
-          access_if(rule[:options][:if_all], :all)
-        elsif rule[:options][:unless]
-          !access_if(rule[:options][:unless])
-        elsif rule[:options][:unless_all]
-          !access_if(rule[:options][:unless_all], :all)
+        pass_block = case
+        when cond = rule[:options][:if]
+          access_if(cond)
+        when cond = rule[:options][:if_all]
+          access_if(cond, :all)
+        when cond = rule[:options][:if_any]
+          access_if(cond, :any)
+        when cond = rule[:options][:unless]
+          !access_if(cond)
+        when cond = rule[:options][:unless_all]
+          !access_if(cond, :all)
+        when cond = rule[:options][:unless_any]
+          !access_if(cond, :any)
         else
           true
         end
@@ -118,20 +123,27 @@ private
     end
   end
 
-  def access_if(method, conjunction = :any)
-    case method
-      when Symbol
-        send(method)
-      when Proc
-        instance_eval(&method)
-      when String
-        instance_eval(method)
-      when Array
-        method.send("#{conjunction}?") do |method|
-          access_if(method, :all)
-        end
-      else
-        raise "Unknown type of method #{method.inspect}"
+  def access_if(method, conjunction = nil)
+    if conjunction
+      case method
+        when Array
+          method.send("#{conjunction}?") do |method|
+            access_if(method)
+          end
+        else
+          raise "Unknown type of method #{method.inspect} for #{conjunction}"
+      end
+    else
+      case method
+        when Symbol
+          send(method)
+        when Proc
+          instance_eval(&method)
+        when String
+          instance_eval(method)
+        else
+          raise "Unknown type of method #{method.inspect}"
+      end
     end
   end
 end
